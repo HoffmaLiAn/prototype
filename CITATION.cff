@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+type: software
+title: Wikidata Profile
+authors:
+  - family-names: "Hoffmann"
+    given-names: "Lisa Anjuli"
+    affiliation: Hochschule Hannover
+    email: null
+description: A Quarto-based project that queries Wikidata with SPARQL and renders styled HTML profiles for Wikidata items.
+license: CC-BY-4.0
+repository-code: https://github.com/mrchristian/prototype
+keywords:
+  - wikidata
+  - sparql
+  - quarto
+  - profile

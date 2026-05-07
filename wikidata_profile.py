@@ -67,6 +67,124 @@ def value_kind_breakdown(properties):
     return counter
 
 
+def build_graph_model(item_id: str, properties):
+    nodes = [
+        {
+            "id": "item",
+            "label": item_id,
+            "group": "item",
+            "title": f"Wikidata item {item_id}",
+        }
+    ]
+    edges = []
+
+    for prop_idx, (prop_name, values) in enumerate(properties.items()):
+        prop_id = f"property-{prop_idx}"
+        nodes.append(
+            {
+                "id": prop_id,
+                "label": prop_name,
+                "group": "property",
+                "title": f"Property {prop_name}",
+            }
+        )
+        edges.append({"from": "item", "to": prop_id})
+
+        for val_idx, entry in enumerate(values):
+            value_id = f"value-{prop_idx}-{val_idx}"
+            node = {
+                "id": value_id,
+                "label": entry["label"] or entry.get("url", ""),
+                "group": entry.get("kind", "literal"),
+                "title": entry.get("url") or entry["label"],
+            }
+            if entry.get("url"):
+                node["url"] = entry["url"]
+            nodes.append(node)
+            edges.append({"from": prop_id, "to": value_id})
+
+    return {"nodes": nodes, "edges": edges}
+
+
+def render_graph_html(item_id: str, properties) -> str:
+    graph_data = build_graph_model(item_id, properties)
+    graph_json = json.dumps(graph_data).replace("</script>", "<\\/script>")
+    graph_id = f"wd-graph-{escape(item_id)}"
+
+    return f"""
+<style>
+.wd-graph-panel {{
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 16px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}}
+.wd-graph-panel h3 {{
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: #0f766e;
+}}
+.wd-graph {{
+  width: 100%;
+  height: 560px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+}}
+</style>
+
+<div class="wd-graph-panel">
+  <h3>Wikidata Item Graph</h3>
+  <div id="{graph_id}" class="wd-graph"></div>
+</div>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script>
+(function() {{
+  var container = document.getElementById("{graph_id}");
+  if (!container || typeof vis === "undefined") return;
+
+  var data = {graph_json};
+  var nodes = new vis.DataSet(data.nodes);
+  var edges = new vis.DataSet(data.edges);
+  var options = {{
+    interaction: {{ hover: true }},
+    nodes: {{
+      shape: "box",
+      margin: 10,
+      font: {{ multi: "html" }},
+    }},
+    groups: {{
+      item: {{ color: {{ background: "#0a9396", border: "#005f73" }}, font: {{ color: "#ffffff" }} }},
+      property: {{ color: {{ background: "#94d2bd", border: "#0f766e" }} }},
+      entity: {{ color: {{ background: "#fde68a", border: "#f59e0b" }} }},
+      literal: {{ color: {{ background: "#dbeafe", border: "#3b82f6" }} }},
+    }},
+    edges: {{
+      color: "#94a3b8",
+      arrows: {{ to: {{ enabled: true, scaleFactor: 0.6 }} }},
+    }},
+    layout: {{ improvedLayout: true }},
+    physics: {{
+      stabilization: true,
+      barnesHut: {{ gravitationalConstant: -1600, springLength: 220, springConstant: 0.01 }},
+    }},
+  }};
+
+  var network = new vis.Network(container, {{ nodes: nodes, edges: edges }}, options);
+  network.on("click", function(params) {{
+    if (params.nodes.length === 1) {{
+      var node = nodes.get(params.nodes[0]);
+      if (node && node.url) {{
+        window.open(node.url, "_blank");
+      }}
+    }}
+  }});
+}})();
+</script>
+"""
+
+
 def _bar_row(label: str, value: int, max_value: int, color: str) -> str:
     ratio = 0 if max_value == 0 else int((value / max_value) * 100)
     return (
